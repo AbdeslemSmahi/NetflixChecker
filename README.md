@@ -17,4 +17,4 @@ This repo provides a mass accounts Netflix checker using Proxy.
 - [ ] Account Type (Free, Basic, Standard, Premium)
 
 
-**DISCLAIMER**: By using this software, you agree that you are responsible for your actions when using it. 
+**DISCLAIMER**: By using this software, you agree that you are responsible for your actions. 
