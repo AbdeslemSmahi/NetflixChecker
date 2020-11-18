@@ -1,2 +1,2 @@
 mechanize~=0.4.5
-progressbar~=2.5
+progressbar2~=3.5

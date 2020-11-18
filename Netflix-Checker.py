@@ -1,7 +1,5 @@
 #!/usr/bin/python3
-# coding: utf-8
-
-from __future__ import division
+# -*- coding: utf-8 -*-
 
 from os import path
 from random import randint
