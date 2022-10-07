@@ -136,7 +136,7 @@ def main():
         if (path.exists(accounts) and path.getsize(accounts) > 0):
             progress = 0
             maxValue = sum(1 for acc in open(accounts))
-            pbar = ProgressBar(max_value=maxValue).start()
+            pbar = ProgressBar(maxval=maxValue).start()
             with open(accounts, "r") as filestream: 
                 for line in filestream:
                     pbar.update(progress)
